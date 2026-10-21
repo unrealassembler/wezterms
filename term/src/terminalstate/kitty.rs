@@ -23,6 +23,9 @@ use wezterm_surface::SequenceNo;
 /// The placeholder character used to reference virtual placements.
 /// <https://sw.kovidgoyal.net/kitty/graphics-protocol/#unicode-placeholders>
 pub(crate) const KITTY_UNICODE_PLACEHOLDER: char = '\u{10EEEE}';
+/// Treated like KITTY_UNICODE_PLACEHOLDER: drawn instead by plugins of programs
+/// that don't let a plugin draw U+10EEEE itself (Claude Code).
+pub(crate) const KITTY_UNICODE_PLACEHOLDER_ALIAS: char = '\u{10EEED}';
 
 /// The combining characters used to encode row, column and
 /// most-significant-image-id-byte values on kitty image placeholder cells.
@@ -297,7 +300,9 @@ impl TerminalState {
             let screen = self.screen_mut();
             let idx = screen.phys_row(y);
             for cell in screen.line_mut(idx).visible_cells() {
-                if cell.str().starts_with(KITTY_UNICODE_PLACEHOLDER) {
+                if cell.str().starts_with(KITTY_UNICODE_PLACEHOLDER)
+                    || cell.str().starts_with(KITTY_UNICODE_PLACEHOLDER_ALIAS)
+                {
                     pending.push((
                         cell.cell_index(),
                         y,
