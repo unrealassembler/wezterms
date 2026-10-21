@@ -398,7 +398,14 @@ impl TerminalState {
                     Some((prev_row, prev_col)) => {
                         (row.unwrap_or(prev_row), col.unwrap_or(prev_col + 1))
                     }
-                    None => (row.unwrap_or(0), col.unwrap_or(0)),
+                    // Nothing to our left: a placeholder without diacritics
+                    // starts the row after the one above it
+                    None => match self.kitty_placeholder_above(x, y, image_id, vp) {
+                        Some((above_row, above_col)) => {
+                            (row.unwrap_or(above_row + 1), col.unwrap_or(above_col))
+                        }
+                        None => (row.unwrap_or(0), col.unwrap_or(0)),
+                    },
                 }
             }
         };
@@ -445,6 +452,26 @@ impl TerminalState {
             return None;
         }
         let cell = self.screen_mut().get_cell(x - 1, y)?;
+        let images = cell.attrs().images()?;
+        let img = images.iter().find(|img| img.image_id() == Some(image_id))?;
+        let row = (img.top_left().y.into_inner() * vp.rows as f32).round() as u32;
+        let col = (img.top_left().x.into_inner() * vp.cols as f32).round() as u32;
+        Some((row, col))
+    }
+    /// The same for the cell above (x, y), so that rows of placeholders can
+    /// do without diacritics altogether: Windows' built-in ConPTY gives each
+    /// combining character a cell of its own, which breaks the layout.
+    fn kitty_placeholder_above(
+        &mut self,
+        x: usize,
+        y: VisibleRowIndex,
+        image_id: u32,
+        vp: KittyVirtualPlacement,
+    ) -> Option<(u32, u32)> {
+        if y == 0 {
+            return None;
+        }
+        let cell = self.screen_mut().get_cell(x, y - 1)?;
         let images = cell.attrs().images()?;
         let img = images.iter().find(|img| img.image_id() == Some(image_id))?;
         let row = (img.top_left().y.into_inner() * vp.rows as f32).round() as u32;
