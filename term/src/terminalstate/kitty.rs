@@ -281,7 +281,35 @@ impl TerminalState {
             cols,
             rows
         );
+        self.kitty_resolve_pending_placeholders();
         Ok(())
+    }
+
+    /// Placeholder cells may be printed before the virtual placement they
+    /// reference exists: Claude Code, for one, sends the image a frame after
+    /// the cells and doesn't print unchanged cells again. Resolve any
+    /// placeholders on the visible screen that are still showing as text.
+    fn kitty_resolve_pending_placeholders(&mut self) {
+        let seqno = self.seqno;
+        let rows = self.screen().physical_rows as VisibleRowIndex;
+        let mut pending = vec![];
+        for y in 0..rows {
+            let screen = self.screen_mut();
+            let idx = screen.phys_row(y);
+            for cell in screen.line_mut(idx).visible_cells() {
+                if cell.str().starts_with(KITTY_UNICODE_PLACEHOLDER) {
+                    pending.push((
+                        cell.cell_index(),
+                        y,
+                        cell.str().to_string(),
+                        cell.attrs().clone(),
+                    ));
+                }
+            }
+        }
+        for (x, y, g, pen) in pending {
+            self.kitty_print_unicode_placeholder(x, y, &g, &pen, seqno);
+        }
     }
 
     /// Print a kitty image placeholder cell: decode which tile of which
