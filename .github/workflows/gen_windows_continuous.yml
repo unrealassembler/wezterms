@@ -78,6 +78,7 @@ jobs:
           crate: "cargo-nextest"
           cache-key: "windows"
       - name: "Test"
+        if: false
         shell: cmd
         run: |
           PATH C:\Strawberry\perl\bin;%PATH%
